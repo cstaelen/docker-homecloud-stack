@@ -1,0 +1,39 @@
+{
+    email {$EMAIL}
+}
+
+# LOCAL SERVICES
+
+dashy.{$LOCAL_DOMAIN}:80 {
+    reverse_proxy dashy:8080
+}
+
+photoprism.{$LOCAL_DOMAIN}:80 {
+    reverse_proxy photoprism:2342
+}
+
+push.{$LOCAL_DOMAIN}:80 {
+    reverse_proxy gotify:80
+}
+
+portainer.{$LOCAL_DOMAIN}:80 {
+    reverse_proxy portainer:9000
+}
+
+overseerr.{$LOCAL_DOMAIN}:80 {
+    reverse_proxy overseerr:5055
+}
+
+# PUBLIC SERVICES
+
+vault.{$PUBLIC_DOMAIN}:443 {
+    reverse_proxy bitwarden:80
+}
+
+https://home.{$PUBLIC_DOMAIN}:443 {
+	reverse_proxy 192.168.1.40:11000
+}
+
+mtm.{$PUBLIC_DOMAIN}:443 {
+    reverse_proxy matomo:80
+}

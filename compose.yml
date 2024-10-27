@@ -1,0 +1,205 @@
+name: homecloud
+
+services:
+
+  # CADDY
+
+  caddy:
+    image: caddy
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - $DATA/caddy/srv:/srv
+      - $DATA/caddy/data:/data
+      - $DATA/caddy/config:/config
+    environment:
+      - ACME_AGREE=true
+      - EMAIL=$EMAIL
+      - LOCAL_DOMAIN=$LOCAL_DOMAIN
+      - PUBLIC_DOMAIN=$PUBLIC_DOMAIN
+      - TZ=$TIMEZONE
+
+  # DASHY
+
+  dashy:
+    volumes:
+      - $DATA/dashy/data/conf.yml:/app/user-data/conf.yml
+    container_name: dashy
+    restart: always
+    image: lissy93/dashy:latest
+    environment:
+      - NODE_ENV=production
+      
+  # BITWARDEN
+
+  bitwarden:
+    image: vaultwarden/server:latest
+    container_name: bitwarden
+    restart: always
+    volumes:
+      - $DATA/bitwarden/data/:/data/
+
+  # PHOTOPRISM
+
+  photoprism:
+    image: photoprism/photoprism
+    container_name: photoprism
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    ports:
+      - 2342:2342
+    environment:
+      - PHOTOPRISM_UPLOAD_NSFW=true
+      - PHOTOPRISM_ADMIN_PASSWORD=$PHOTOPRISM_PASSWORD
+    volumes:
+      - $DATA/photoprism/data:/photoprism/storage
+      - $DATA/nextcloud-aio/data/clem/files/Photos:/photoprism/originals
+      - $DATA/photoprism/dump:/var/lib/photoprism/mysql
+  # OVERSEERR
+
+  overseerr:
+    image: lscr.io/linuxserver/overseerr:latest
+    container_name: overseerr
+    environment:
+      - TZ=$TIMEZONE
+    volumes:
+      - $DATA/overseerr/config:/config
+    ports:
+      - 5055:5055
+    restart: unless-stopped
+
+  # MATOMO
+
+  mariadb:
+    container_name: mariadb
+    image: mariadb:10.5.19
+    environment:
+      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
+      MYSQL_DATABASE: $MYSQL_DATABASE
+      MYSQL_USER: $MYSQL_USER
+      MYSQL_PASSWORD: $MYSQL_PASSWORD
+    volumes:
+      - $DATA/matomo/data/mariadb:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  matomo:
+    container_name: matomo
+    links:
+      - mariadb
+    environment:
+      - TZ=$TIMEZONE
+    volumes:
+      - $DATA/matomo/data/matomo:/var/www/html
+    image: matomo
+    restart: always
+
+  # TIDAL CONNECT
+
+  tidal-connect:
+    image: edgecrush3r/tidal-connect:latest
+    container_name: tidal-connect
+    tty: true
+    network_mode: host
+    devices:
+      - /dev/snd
+    environment:
+      - PLAYBACK_DEVICE=$TIDAL_PLAYBACK_DEVICE
+      - FRIENDLY_NAME=$TIDAL_PLAYER_NAME
+      - MODEL_NAME=$TIDAL_PLAYER_NAME
+      - MQA_CODEC=false
+      - MQA_PASSTHROUGH=true
+    volumes:
+      - $DATA/tidal-connect/entrypoint.sh:/entrypoint.sh
+      - /var/run/dbus:/var/run/dbus
+    dns:
+      - 192.168.1.30
+
+  # PLEXAMP
+
+  plexamp:
+    container_name: plexamp
+    image: ghcr.io/anatosun/plexamp:arm64v8
+    network_mode: host
+    devices:
+       - /dev/snd:/dev/snd
+    volumes:
+       - $DATA/plexamp/config:/root/.local/share/Plexamp/Settings
+    environment:
+       - PLEXAMP_CLAIM_TOKEN=$PLEXAMP_CLAIM_TOKEN
+       - PLEXAMP_PLAYER_NAME=$PLEXAMP_PLAYER_NAME
+    restart: unless-stopped
+
+  # GOTIFY
+
+  gotify:
+    image: gotify/server-arm7:latest
+    container_name: gotify
+    restart: always
+    ports:
+      - 8088:80
+    environment:
+      - GOTIFY_DEFAULTUSER_PASS=G0t1fy!!
+      - GOTIFY_UPLOADEDIMAGESDIR=data/images
+      - GOTIFY_PLUGINSDIR=data/plugins
+      - TZ=Europe/Paris
+    volumes:
+      - $DATA/gotify/data:/app/data
+
+  # NEXTCLOUD AIO
+
+  nextcloud-aio-mastercontainer:
+    image: nextcloud/all-in-one:latest
+    init: true
+    restart: always
+    security_opt: ["label:disable"]
+    container_name: nextcloud-aio-mastercontainer # Required as it is
+    volumes:
+      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config # Required as it is
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+        - 8080:8080
+    environment:
+      APACHE_PORT: 11000
+      APACHE_IP_BINDING: 192.168.1.40
+      NEXTCLOUD_DATADIR: $DATA/nextcloud-aio/data
+
+  # PORTAINER
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: always
+    ports:
+      - 9000:9000
+      - 8000:8000
+      - 9443:9443
+    volumes:
+      - /run/user/1000/docker.sock:/var/run/docker.sock
+      - $DATA/portainer/data:/data
+
+  # GLANCE
+
+  monitoring:
+    container_name: monitoring
+    image: nicolargo/glances:dev
+    restart: unless-stopped
+    pid: host
+    privileged: true
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - $DATA/glances/glances.conf:/glances/conf/glances.conf
+    environment:
+      GLANCES_OPT: "-C /glances/conf/glances.conf -w"
+      TZ: $TZ
+
+volumes:
+ nextcloud_aio_mastercontainer:
+   name: nextcloud_aio_mastercontainer
