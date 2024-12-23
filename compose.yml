@@ -200,6 +200,19 @@ services:
       GLANCES_OPT: "-C /glances/conf/glances.conf -w"
       TZ: $TZ
 
+  # WATCH TOWER
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $DATA/watchtower/config.json:/config.json
+    environment:
+      - WATCHTOWER_NOTIFICATIONS=gotify
+      - WATCHTOWER_NOTIFICATION_GOTIFY_URL=http://push.pi.docker
+      - WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN=xxxxxxxxxxx
+
 volumes:
  nextcloud_aio_mastercontainer:
    name: nextcloud_aio_mastercontainer
