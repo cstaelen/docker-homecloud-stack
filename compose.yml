@@ -27,11 +27,11 @@ services:
   # DASHY
 
   dashy:
+    image: lissy93/dashy:latest
+    container_name: dashy
     volumes:
       - $DATA/dashy/data/conf.yml:/app/user-data/conf.yml
-    container_name: dashy
     restart: always
-    image: lissy93/dashy:latest
     environment:
       - NODE_ENV=production
       
@@ -77,8 +77,8 @@ services:
   # MATOMO
 
   mariadb:
-    container_name: mariadb
     image: mariadb:10.5.19
+    container_name: mariadb
     environment:
       MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
       MYSQL_DATABASE: $MYSQL_DATABASE
@@ -90,6 +90,7 @@ services:
       - 3306:3306
 
   matomo:
+    image: matomo
     container_name: matomo
     links:
       - mariadb
@@ -97,7 +98,6 @@ services:
       - TZ=$TIMEZONE
     volumes:
       - $DATA/matomo/data/matomo:/var/www/html
-    image: matomo
     restart: always
 
   # TIDAL CONNECT
@@ -121,11 +121,22 @@ services:
     dns:
       - 192.168.1.30
 
+  # SPOTIFY CONNECT
+
+  spotify-connect:
+    image: derkades/raspotify
+    container_name: spotify-connect
+    network_mode: host
+    devices: 
+      - /dev/snd:/dev/snd
+    environment:
+      - SPOTIFY_NAME=Hifi Salon
+
   # PLEXAMP
 
   plexamp:
-    container_name: plexamp
     image: ghcr.io/anatosun/plexamp:arm64v8
+    container_name: plexamp
     network_mode: host
     devices:
        - /dev/snd:/dev/snd
@@ -156,10 +167,10 @@ services:
 
   nextcloud-aio-mastercontainer:
     image: nextcloud/all-in-one:latest
+    container_name: nextcloud-aio-mastercontainer # Required as it is
     init: true
     restart: always
     security_opt: ["label:disable"]
-    container_name: nextcloud-aio-mastercontainer # Required as it is
     volumes:
       - nextcloud_aio_mastercontainer:/mnt/docker-aio-config # Required as it is
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -173,8 +184,8 @@ services:
   # PORTAINER
 
   portainer:
-    container_name: portainer
     image: portainer/portainer-ce:latest
+    container_name: portainer
     restart: always
     ports:
       - 9000:9000
@@ -187,8 +198,8 @@ services:
   # GLANCE
 
   monitoring:
-    container_name: monitoring
     image: nicolargo/glances:dev
+    container_name: monitoring
     restart: unless-stopped
     pid: host
     privileged: true

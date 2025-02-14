@@ -42,6 +42,12 @@ Install :
  sudo sh ./get-docker.sh --dry-run
 ```
 
+If `permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock` occurred, create docker and add user into :
+```bash
+sudo groupadd docker
+sudo usermod -aG docker $USER
+```
+
 ## Daemon
 
 ```bash
