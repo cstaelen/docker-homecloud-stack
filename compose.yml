@@ -197,8 +197,7 @@ services:
     image: nextcloud:latest
     container_name: nextcloud
     volumes:
-      - $DATA/nextcloud/config:/config
-      - $DATA/nextcloud/data:/var/www/html/data
+      - $DATA/nextcloud/html:/var/www/html
     restart: unless-stopped
     links:
       - nextcloud_db

@@ -92,13 +92,25 @@ dtpram=act_led_trigger=heartbeat
 dtpram=pwr_led_trigger=none
 ```
 
-## Nextcloud AIO
+## Nextcloud
 
 Scan files
 
 ```bash
 sudo docker exec --user www-data -it nextcloud php occ files:scan-app-data 
 sudo docker exec --user www-data -it nextcloud php occ files:scan --all
+```
+
+```php
+[
+    ...
+    'trusted_domains' => array (
+        0 => 'https://home.cl-st.me',
+    ),
+    'overwrite.cli.url' => 'https://home.cl-st.me',
+    'overwriteprotocol' => 'http',
+    ...
+]
 ```
 
 ## Backup cron
