@@ -5,35 +5,51 @@
 # LOCAL SERVICES
 
 dashy.{$LOCAL_DOMAIN}:80 {
-    reverse_proxy dashy:8080
+        reverse_proxy dashy:8080
 }
 
 photoprism.{$LOCAL_DOMAIN}:80 {
-    reverse_proxy photoprism:2342
+        reverse_proxy photoprism:2342
+}
+
+plexamp.{$LOCAL_DOMAIN} {
+        reverse_proxy plexamp:32500
 }
 
 push.{$LOCAL_DOMAIN}:80 {
-    reverse_proxy gotify:80
+        reverse_proxy gotify:80
 }
 
 portainer.{$LOCAL_DOMAIN}:80 {
-    reverse_proxy portainer:9000
+        reverse_proxy portainer:9000
 }
 
 overseerr.{$LOCAL_DOMAIN}:80 {
-    reverse_proxy overseerr:5055
+        reverse_proxy overseerr:5055
+}
+
+radicale.{$LOCAL_DOMAIN}:80 {
+        reverse_proxy radicale:5232
+}
+
+nextcloud.{$LOCAL_DOMAIN}:80 {
+        reverse_proxy radicale:80
 }
 
 # PUBLIC SERVICES
 
 vault.{$PUBLIC_DOMAIN}:443 {
-    reverse_proxy bitwarden:80
+        reverse_proxy bitwarden:80
 }
 
 https://home.{$PUBLIC_DOMAIN}:443 {
-	reverse_proxy 192.168.1.40:11000
+	reverse_proxy nextcloud:80
 }
 
 mtm.{$PUBLIC_DOMAIN}:443 {
-    reverse_proxy matomo:80
+        reverse_proxy matomo:80
+}
+
+https://radicale.{$PUBLIC_DOMAIN}:443 {
+        reverse_proxy radicale:5232
 }

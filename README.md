@@ -97,8 +97,8 @@ dtpram=pwr_led_trigger=none
 Scan files
 
 ```bash
-sudo docker exec --user www-data -it nextcloud-aio-nextcloud php occ files:scan-app-data 
-sudo docker exec --user www-data -it nextcloud-aio-nextcloud php occ files:scan --all
+sudo docker exec --user www-data -it nextcloud php occ files:scan-app-data 
+sudo docker exec --user www-data -it nextcloud php occ files:scan --all
 ```
 
 ## Backup cron

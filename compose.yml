@@ -5,7 +5,7 @@ services:
   # CADDY
 
   caddy:
-    image: caddy
+    image: caddy:latest
     container_name: caddy
     restart: unless-stopped
     ports:
@@ -27,14 +27,14 @@ services:
   # DASHY
 
   dashy:
-    image: lissy93/dashy:latest
-    container_name: dashy
     volumes:
       - $DATA/dashy/data/conf.yml:/app/user-data/conf.yml
+    container_name: dashy
     restart: always
+    image: lissy93/dashy:latest
     environment:
       - NODE_ENV=production
-      
+
   # BITWARDEN
 
   bitwarden:
@@ -47,7 +47,8 @@ services:
   # PHOTOPRISM
 
   photoprism:
-    image: photoprism/photoprism
+    platform: arm64
+    image: photoprism/photoprism:latest
     container_name: photoprism
     security_opt:
       - seccomp=unconfined
@@ -61,6 +62,7 @@ services:
       - $DATA/photoprism/data:/photoprism/storage
       - $DATA/nextcloud-aio/data/clem/files/Photos:/photoprism/originals
       - $DATA/photoprism/dump:/var/lib/photoprism/mysql
+
   # OVERSEERR
 
   overseerr:
@@ -74,23 +76,24 @@ services:
       - 5055:5055
     restart: unless-stopped
 
-  # MATOMO
+  # MATOMO DB
 
   mariadb:
-    image: mariadb:10.5.19
     container_name: mariadb
+    image: mariadb:10.5.19
     environment:
-      MYSQL_ROOT_PASSWORD: $MYSQL_ROOT_PASSWORD
-      MYSQL_DATABASE: $MYSQL_DATABASE
-      MYSQL_USER: $MYSQL_USER
-      MYSQL_PASSWORD: $MYSQL_PASSWORD
+      MYSQL_ROOT_PASSWORD: $MYSQL_MATOMO_ROOT_PASSWORD
+      MYSQL_DATABASE: $MYSQL_MATOMO_DATABASE
+      MYSQL_USER: $MYSQL_MATOMO_USER
+      MYSQL_PASSWORD: $MYSQL_MATOMO_PASSWORD
     volumes:
       - $DATA/matomo/data/mariadb:/var/lib/mysql
     ports:
       - 3306:3306
 
+  # MATOMO
+
   matomo:
-    image: matomo
     container_name: matomo
     links:
       - mariadb
@@ -98,6 +101,7 @@ services:
       - TZ=$TIMEZONE
     volumes:
       - $DATA/matomo/data/matomo:/var/www/html
+    image: matomo:latest
     restart: always
 
   # TIDAL CONNECT
@@ -127,17 +131,18 @@ services:
     image: derkades/raspotify
     container_name: spotify-connect
     network_mode: host
-    devices: 
+    devices:
       - /dev/snd:/dev/snd
     environment:
-      - SPOTIFY_NAME=Hifi Salon
+      - SPOTIFY_NAME=$SPOTIFY_PLAYER_NAME
 
   # PLEXAMP
 
   plexamp:
-    image: ghcr.io/anatosun/plexamp:arm64v8
     container_name: plexamp
+    image: ghcr.io/anatosun/plexamp:arm64v8
     network_mode: host
+    privileged: true
     devices:
        - /dev/snd:/dev/snd
     volumes:
@@ -150,56 +155,91 @@ services:
   # GOTIFY
 
   gotify:
-    image: gotify/server-arm7:latest
+    image: gotify/server:latest
     container_name: gotify
     restart: always
     ports:
       - 8088:80
     environment:
-      - GOTIFY_DEFAULTUSER_PASS=G0t1fy!!
+      - GOTIFY_DEFAULTUSER_PASS=$GOTIFY_PASSWORD
       - GOTIFY_UPLOADEDIMAGESDIR=data/images
       - GOTIFY_PLUGINSDIR=data/plugins
-      - TZ=Europe/Paris
+      - TZ=$TZ
     volumes:
       - $DATA/gotify/data:/app/data
 
-  # NEXTCLOUD AIO
+  # RACICALE
 
-  nextcloud-aio-mastercontainer:
-    image: nextcloud/all-in-one:latest
-    container_name: nextcloud-aio-mastercontainer # Required as it is
-    init: true
-    restart: always
-    security_opt: ["label:disable"]
-    volumes:
-      - nextcloud_aio_mastercontainer:/mnt/docker-aio-config # Required as it is
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    container_name: radicale
     ports:
-        - 8080:8080
+      - 5232:5232
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+      - KILL
+    restart: unless-stopped
+    volumes:
+      - $DATA/radicale/data:/data
+      - $DATA/radicale/config:/config
+
+  # NEXTCLOUD
+
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    volumes:
+      - $DATA/nextcloud/config:/config
+      - $DATA/nextcloud/data:/var/www/html/data
+    restart: unless-stopped
+    links:
+      - nextcloud_db
     environment:
-      APACHE_PORT: 11000
-      APACHE_IP_BINDING: 192.168.1.40
-      NEXTCLOUD_DATADIR: $DATA/nextcloud-aio/data
+      NEXTCLOUD_TRUSTED_DOMAINS: $NEXTCLOUD_PUBLIC_URL
+      OVERWRITEPROTOCOL: https
+
+  # NEXTCLOUD DB
+
+  nextcloud_db:
+    container_name: nextcloud_db
+    image: mariadb:10.5.19
+    environment:
+      MYSQL_ROOT_PASSWORD: $MYSQL_NEXTCLOUD_ROOT_PASSWORD
+      MYSQL_DATABASE: $MYSQL_NEXTCLOUD_DATABASE
+      MYSQL_USER: $MYSQL_NEXTCLOUD_USER
+      MYSQL_PASSWORD: $MYSQL_NEXTCLOUD_PASSWORD
+    volumes:
+      - $DATA/nextcloud/mariadb:/var/lib/mysql
+    ports:
+      - 3307:3306
 
   # PORTAINER
 
   portainer:
-    image: portainer/portainer-ce:latest
     container_name: portainer
+    image: portainer/portainer-ce:latest
     restart: always
     ports:
       - 9000:9000
       - 8000:8000
       - 9443:9443
     volumes:
-      - /run/user/1000/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
       - $DATA/portainer/data:/data
 
   # GLANCE
 
   monitoring:
-    image: nicolargo/glances:dev
     container_name: monitoring
+    image: nicolargo/glances:latest
     restart: unless-stopped
     pid: host
     privileged: true
@@ -209,7 +249,7 @@ services:
       - $DATA/glances/glances.conf:/glances/conf/glances.conf
     environment:
       GLANCES_OPT: "-C /glances/conf/glances.conf -w"
-      TZ: $TZ
+      TZ: $TIMEZONE
 
   # WATCH TOWER
 
@@ -220,10 +260,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - $DATA/watchtower/config.json:/config.json
     environment:
+      - TZ=$TIMEZONE
+      - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_NOTIFICATIONS=gotify
-      - WATCHTOWER_NOTIFICATION_GOTIFY_URL=http://push.pi.docker
-      - WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN=xxxxxxxxxxx
-
-volumes:
- nextcloud_aio_mastercontainer:
-   name: nextcloud_aio_mastercontainer
+      - WATCHTOWER_NOTIFICATION_GOTIFY_URL=$WATCH_TOWER_GOTIFY_URL
+      - WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN=$WATCH_TOWER_GOTIFY_TOKEN
