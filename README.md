@@ -69,15 +69,6 @@ dtpram=act_led_trigger=heartbeat
 dtpram=pwr_led_trigger=none
 ```
 
-## Nextcloud AIO
-
-Scan files
-
-```bash
-sudo docker exec --user www-data -it nextcloud-aio-nextcloud php occ files:scan-app-data 
-sudo docker exec --user www-data -it nextcloud-aio-nextcloud php occ files:scan --all
-```
-
 
 ## Backup crontab
 
