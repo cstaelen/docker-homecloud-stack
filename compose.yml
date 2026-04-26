@@ -1,0 +1,252 @@
+name: homecloud
+
+services:
+
+  # CADDY
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - $DATA/caddy/srv:/srv
+      - $DATA/caddy/data:/data
+      - $DATA/caddy/config:/config
+    environment:
+      - ACME_AGREE=true
+      - EMAIL=$EMAIL
+      - LOCAL_DOMAIN=$LOCAL_DOMAIN
+      - PUBLIC_DOMAIN=$PUBLIC_DOMAIN
+      - TZ=$TIMEZONE
+
+  # DASHY
+
+  dashy:
+    volumes:
+      - $DATA/dashy/data/conf.yml:/app/user-data/conf.yml
+    container_name: dashy
+    restart: always
+    image: lissy93/dashy:latest
+    environment:
+      - NODE_ENV=production
+
+  # BITWARDEN 
+
+  bitwarden:
+    image: vaultwarden/server:latest
+    container_name: bitwarden
+    restart: always
+    volumes:
+      - $DATA/bitwarden/data/:/data/
+
+  # PHOTOPRISM
+
+  photoprism:
+    platform: arm64
+    image: photoprism/photoprism:latest
+    container_name: photoprism
+    security_opt:
+      - seccomp=unconfined
+      - apparmor=unconfined
+    ports:
+      - 2342:2342
+    environment:
+      - PHOTOPRISM_UPLOAD_NSFW=true
+      - PHOTOPRISM_ADMIN_PASSWORD=$PHOTOPRISM_PASSWORD
+    volumes:
+      - $DATA/photoprism/data:/photoprism/storage
+      - $DATA/nextcloud/html/data/clem/files/Photos:/photoprism/originals
+      - $DATA/photoprism/dump:/var/lib/photoprism/mysql
+
+  # MATOMO DB
+
+  matomo-db:
+    container_name: matomo-db
+    image: mariadb:10.5.19
+    environment:
+      MYSQL_ROOT_PASSWORD: $MYSQL_MATOMO_ROOT_PASSWORD
+      MYSQL_DATABASE: $MYSQL_MATOMO_DATABASE
+      MYSQL_USER: $MYSQL_MATOMO_USER
+      MYSQL_PASSWORD: $MYSQL_MATOMO_PASSWORD
+    volumes:
+      - $DATA/matomo/data/mariadb:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  # MATOMO
+
+  matomo:
+    container_name: matomo
+    links:
+      - matomo-db
+    environment:
+      - TZ=$TIMEZONE
+    volumes:
+      - $DATA/matomo/data/matomo:/var/www/html
+    image: matomo:latest
+    restart: always
+
+  # TIDAL CONNECT
+
+  tidal-connect:
+    image: edgecrush3r/tidal-connect:latest
+    container_name: tidal-connect
+    tty: true
+    network_mode: host
+    devices:
+      - /dev/snd
+    environment:
+      - PLAYBACK_DEVICE=$TIDAL_PLAYBACK_DEVICE
+      - FRIENDLY_NAME=$TIDAL_PLAYER_NAME
+      - MODEL_NAME=$TIDAL_PLAYER_NAME
+      - MQA_CODEC=false
+      - MQA_PASSTHROUGH=true
+    volumes:
+      - $DATA/tidal-connect/entrypoint.sh:/entrypoint.sh
+      - /var/run/dbus:/var/run/dbus
+    dns:
+      - 192.168.1.30
+
+
+  # CASTAFIORE HEADLESS
+
+  castafiore-headless:
+    image: cstaelen/castafiore-headless:latest
+    container_name: castafiore-headless
+    devices:
+      - /dev/snd
+    ports:
+      - "8899:8899"
+    environment:
+      ALSA_DEVICE: plughw:0,0        # run `aplay -l` to list available devices
+    restart: unless-stopped
+
+# GOTIFY
+
+  gotify:
+    image: gotify/server:latest
+    container_name: gotify
+    restart: always
+    ports:
+      - 8088:80
+    environment:
+      - GOTIFY_DEFAULTUSER_PASS=$GOTIFY_PASSWORD
+      - GOTIFY_UPLOADEDIMAGESDIR=data/images
+      - GOTIFY_PLUGINSDIR=data/plugins
+      - TZ=$TZ
+    volumes:
+      - $DATA/gotify/data:/app/data
+
+  # RACICALE
+
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    container_name: radicale
+    ports:
+      - 5232:5232
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - CHOWN
+      - KILL
+    restart: unless-stopped
+    volumes:
+      - $DATA/radicale/data:/data
+      - $DATA/radicale/config:/config
+
+  # SAMBA
+
+  samba:
+    image: ghcr.io/servercontainers/samba
+    container_name: samba
+    network_mode: host
+    cap_add:
+      - CAP_NET_ADMIN
+    environment:
+      - TZ=Europe/Paris
+      - ACCOUNT_clem=$SMB_PASSWORD_0
+      - UID_clem=1000
+      - AVAHI_NAME=HOMECLOUD
+      - SAMBA_VOLUME_CONFIG_clem=[clem]; path=/samba/clem; valid users=clem; read only=no; browseable=yes
+      - SAMBA_VOLUME_CONFIG_photos=[photos]; path=/samba/photos; valid users=clem; read only=no; browseable=yes
+    volumes:
+      - $DATA/syncthing/data/files/clem:/samba/clem
+      - $DATA/samba/shared/photos:/samba/photos
+    restart: always
+
+  # SYNCTHING
+
+  syncthing:
+    image: syncthing/syncthing
+    container_name: syncthing
+    hostname: my-syncthing
+    environment:
+      - PUID=1000
+      - PGID=1000
+      # - STGUIADDRESS=
+    volumes:
+      - $DATA/syncthing/data:/var/syncthing
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: curl -fkLsS -m 2 127.0.0.1:8384/rest/noauth/health | grep -o --color=never OK || exit 1
+      interval: 1m
+      timeout: 10s
+      retries: 3
+
+  # PORTAINER
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:latest
+    restart: always
+    ports:
+      - 9000:9000
+      - 8000:8000
+      - 9443:9443
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $DATA/portainer/data:/data
+
+  # GLANCE
+
+  monitoring:
+    container_name: monitoring
+    image: nicolargo/glances:latest
+    restart: unless-stopped
+    pid: host
+    privileged: true
+    network_mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - $DATA/glances/glances.conf:/glances/conf/glances.conf
+    environment:
+      GLANCES_OPT: "-C /glances/conf/glances.conf -w"
+      TZ: $TIMEZONE
+
+  # WATCH TOWER
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $DATA/watchtower/config.json:/config.json
+    environment:
+      - TZ=$TIMEZONE
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_NOTIFICATIONS=gotify
+      - WATCHTOWER_NOTIFICATION_GOTIFY_URL=$WATCH_TOWER_GOTIFY_URL
+      - WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN=$WATCH_TOWER_GOTIFY_TOKEN
+
